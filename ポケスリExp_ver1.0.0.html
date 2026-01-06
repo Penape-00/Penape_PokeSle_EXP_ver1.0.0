@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポケスリExp計算機_ver1.1.0</title>
+
+    <style>
+    body {
+        font-family: sans-serif;
+        padding: 20px;
+        background: #a9a9a9;
+    }
+
+    h1 {
+        margin-bottom: 20px;
+    }
+
+    .input-wrapper {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        margin-bottom: 25px;
+    }
+
+    h2 {
+        font-size: 20px;
+        border-left: 6px solid #BA0000;
+        padding-left: 8px;
+        margin-bottom: 8px;
+        margin-top: 10px;
+    }
+
+    .row {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+
+    .col {
+        flex: 1;
+        padding-bottom: 10px;
+    }
+
+    label {
+        font-weight: bold;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+        font-size: 16px;
+    }
+
+    .button-row {
+        display: flex;
+        gap: 15px;
+        margin-top: 10px;
+    }
+
+    #calcButton {
+        flex: 1;
+        padding: 12px;
+        background: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+    }
+
+    #calcButton:hover {
+        background: #45a049;
+    }
+
+    #clearButton {
+        flex: 1;
+        padding: 12px;
+        background: #d9534f;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+    }
+
+    #clearButton:hover {
+        background: #c9302c;
+    }
+
+    .output-section {
+        background: #f5f5f5;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .result-note {
+        font-size: 12px;      /* 出力結果より少し小さめ */
+        color: #999;          /* ダークグレー */
+        margin-top: 8px;
+    }
+
+    @media (max-width: 600px) {
+        .row {
+            flex-direction: column;
+        }
+        .button-row {
+            flex-direction: column;
+        }
+    }
+    </style>
+</head>
+
+<body>
+
+<h1>ポケスリExp計算機_ver1.1.0</h1>
+
+<div class="input-wrapper">
+
+    <h2>基本情報</h2>
+    <div class="row">
+        <div class="col">
+            <label>ポケモン名：</label>
+            <select id="pokemonSelect"></select>
+        </div>
+        <div class="col">
+            <label>性格：</label>
+            <select id="natureSelect"></select>
+        </div>
+    </div>
+
+    <h2>レベル情報</h2>
+    <div class="row">
+        <div class="col">
+            <label>現在Lv：</label>
+            <input type="number" id="currentLevel" min="1" max="65" value="15">
+        </div>
+        <div class="col">
+            <label>次のレベルまでのEXP：</label>
+            <input type="number" id="currentExp" min="0">
+        </div>
+        <div class="col">
+            <label>目標Lv：</label>
+            <input type="number" id="targetLevel" min="1" max="65" value="60">
+        </div>
+    </div>
+
+    <h2>睡眠情報</h2>
+    <div class="row">
+        <div class="col">
+            <label>平均睡眠EXP：</label>
+            <input type="number" id="sleepExp" min="0" max="100" value="100">
+        </div>
+        <div class="col">
+            <label>睡眠EXPボーナス：</label>
+            <select id="sleepBonus">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+            </select>
+        </div>
+    </div>
+
+    <h2>アメ使用設定</h2>
+    <div class="row">
+        <div class="col">
+            <label>アメブースト：</label>
+            <select id="candyBoost">
+                <option value="none">なし</option>
+                <option value="mini">ミニアメブースト</option>
+                <option value="full">アメブースト</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="button-row">
+        <button id="calcButton">計算する</button>
+        <button id="clearButton">クリア</button>
+    </div>
+
+</div>
+
+<div class="output-section">
+    <h2>結果</h2>
+    <p id="resultExp"></p>
+    <p id="resultCandy"></p>
+    <p id="resultShard"></p>
+    <p id="resultDays"></p>
+    <p id="resultNote" class="result-note" style="display:none;">※計算結果はゲーム内仕様により多少前後する場合があります。</p>
+</div>
+
+<script>
+/* ---------------------------------------------------------
+   データ定義
+--------------------------------------------------------- */
+
+const pokemonGroups = {
+    "single": [{ value: "other", label: "その他", multiplier: 1.0 }],
+    "1.5倍": [
+        { value: "dratini", label: "ミニリュウ系統", multiplier: 1.5 },
+        { value: "larvitar", label: "ヨーギラス系統", multiplier: 1.5 },
+        { value: "bagon", label: "タツベイ系統", multiplier: 1.5 }
+    ],
+    "1.8倍": [
+        { value: "raikou", label: "ライコウ", multiplier: 1.8 },
+        { value: "entei", label: "エンテイ", multiplier: 1.8 },
+        { value: "suicune", label: "スイクン", multiplier: 1.8 },
+        { value: "cresselia", label: "クレセリア", multiplier: 1.8 }
+    ],
+    "2.2倍": [
+        { value: "darkrai", label: "ダークライ", multiplier: 2.2 }
+    ]
+};
+
+const natureGroups = {
+    "single": [{ value: "other", label: "その他", bonus: 1.00 }],
+    "▷Exp上昇": [
+        { value: "timid", label: "おくびょう", bonus: 1.18 },
+        { value: "hasty", label: "せっかち", bonus: 1.18 },
+        { value: "jolly", label: "ようき", bonus: 1.18 },
+        { value: "naive", label: "むじゃき", bonus: 1.18 }
+    ],
+    "▷Exp下降": [
+        { value: "brave", label: "ゆうかん", bonus: 0.82 },
+        { value: "relaxed", label: "のんき", bonus: 0.82 },
+        { value: "quiet", label: "れいせい", bonus: 0.82 },
+        { value: "sassy", label: "なまいき", bonus: 0.82 }
+    ]
+};
+
+const expTable = {
+    1:54,2:71,3:108,4:128,5:164,6:202,7:244,8:274,9:315,10:345,
+    11:376,12:407,13:419,14:429,15:440,16:454,17:469,18:483,19:497,20:515,
+    21:537,22:558,23:579,24:600,25:622,26:643,27:665,28:686,29:708,30:729,
+    31:748,32:766,33:785,34:803,35:821,36:839,37:857,38:875,39:893,40:910,
+    41:928,42:945,43:963,44:980,45:997,46:1015,47:1032,48:1049,49:1066,50:1362,
+    51:1562,52:1747,53:1946,54:2195,55:2279,56:2404,57:2533,58:2666,59:2806,
+    60:2865,61:2922,62:2977,63:3029,64:3077,65:0
+};
+
+const shardTable = {
+    1:14,2:18,3:22,4:27,5:30,6:34,7:39,8:44,9:48,10:50,
+    11:52,12:53,13:56,14:59,15:62,16:66,17:68,18:71,19:74,20:78,
+    21:81,22:85,23:88,24:92,25:95,26:100,27:105,28:111,29:117,30:122,
+    31:126,32:130,33:136,34:143,35:151,36:160,37:167,38:174,39:184,40:192,
+    41:201,42:211,43:221,44:227,45:236,46:250,47:264,48:279,49:295,50:309,
+    51:323,52:338,53:356,54:372,55:391,56:437,57:486,58:538,59:593,60:651,
+    61:698,62:750,63:804,64:866,65:0
+};
+
+/* ---------------------------------------------------------
+   ユーティリティ
+--------------------------------------------------------- */
+
+function getSelectedPokemonMultiplier() {
+    const select = document.getElementById("pokemonSelect");
+    const option = select.options[select.selectedIndex];
+    return Number(option.dataset.multiplier) || 1;
+}
+
+function updateRemainingExp() {
+    const lv = Number(document.getElementById("currentLevel").value);
+    const base = expTable[lv] ?? 0;
+    const mult = getSelectedPokemonMultiplier();
+    document.getElementById("currentExp").value = Math.round(base * mult);
+}
+
+function getBaseCandyExp(level) {
+    if (level <= 24) return 35;
+    if (level <= 29) return 30;
+    return 25;
+}
+
+function getCandyExp(level, natureBonus) {
+    return Math.round(getBaseCandyExp(level) * natureBonus);
+}
+
+function applyCandyBoost(exp, boostType) {
+    if (boostType === "mini") return exp * 2;
+    if (boostType === "full") return exp * 2;
+    return exp;
+}
+
+function getCandyExpPerUse(level, natureBonus, boostType) {
+    return applyCandyBoost(getCandyExp(level, natureBonus), boostType);
+}
+
+/* ---------------------------------------------------------
+   UI生成
+--------------------------------------------------------- */
+
+function populatePokemonSelect() {
+    const select = document.getElementById("pokemonSelect");
+    select.innerHTML = "";
+
+    const other = document.createElement("option");
+    other.value = "other";
+    other.textContent = "　その他";
+    other.dataset.multiplier = 1.0;
+    select.appendChild(other);
+
+    for (const groupName of ["1.5倍", "1.8倍", "2.2倍"]) {
+        const optgroup = document.createElement("optgroup");
+        optgroup.label = groupName;
+
+        pokemonGroups[groupName].forEach(p => {
+            const op = document.createElement("option");
+            op.value = p.value;
+            op.textContent = p.label;
+            op.dataset.multiplier = p.multiplier;
+            optgroup.appendChild(op);
+        });
+
+        select.appendChild(optgroup);
+    }
+}
+
+function populateNatureSelect() {
+    const select = document.getElementById("natureSelect");
+    select.innerHTML = "";
+
+    const other = document.createElement("option");
+    other.value = "other";
+    other.textContent = "　その他";
+    other.dataset.bonus = 1.00;
+    select.appendChild(other);
+
+    for (const groupName of ["▷Exp上昇", "▷Exp下降"]) {
+        const optgroup = document.createElement("optgroup");
+        optgroup.label = groupName;
+
+        natureGroups[groupName].forEach(n => {
+            const op = document.createElement("option");
+            op.value = n.value;
+            op.textContent = n.label;
+            op.dataset.bonus = n.bonus;
+            optgroup.appendChild(op);
+        });
+
+        select.appendChild(optgroup);
+    }
+}
+
+/* ---------------------------------------------------------
+   アメ使用＋かけらシミュレーション
+--------------------------------------------------------- */
+
+function simulateCandyAndShard(currentLv, remainingExp, targetLv, natureBonus, candyBoost) {
+    let lv = currentLv;
+    let expLeft = remainingExp;
+
+    let candyCount = 0;
+    let shardTotal = 0;
+
+    while (lv < targetLv) {
+        let candyExp = getCandyExpPerUse(lv, natureBonus, candyBoost);
+
+        let shardCost = shardTable[lv];
+        if (candyBoost === "mini") shardCost *= 4;
+        if (candyBoost === "full") shardCost *= 5;
+
+        shardTotal += shardCost;
+        expLeft -= candyExp;
+        candyCount++;
+
+        if (expLeft <= 0) {
+            lv++;
+            if (lv >= targetLv) break;
+
+            const overflow = Math.abs(expLeft);
+            expLeft = Math.round(expTable[lv] * getSelectedPokemonMultiplier()) - overflow;
+        }
+    }
+
+    return { candyCount, shardTotal };
+}
+
+/* ---------------------------------------------------------
+   メイン計算
+--------------------------------------------------------- */
+
+function calculateExp() {
+    const currentLv = Number(document.getElementById("currentLevel").value);
+    const remainingExp = Number(document.getElementById("currentExp").value);
+    const targetLv = Number(document.getElementById("targetLevel").value);
+
+    const sleepExp = Number(document.getElementById("sleepExp").value);
+    const sleepBonus = Number(document.getElementById("sleepBonus").value);
+    const candyBoost = document.getElementById("candyBoost").value;
+
+    const pokemonMultiplier = getSelectedPokemonMultiplier();
+
+    const natureSelect = document.getElementById("natureSelect");
+    const natureBonus = Number(natureSelect.options[natureSelect.selectedIndex].dataset.bonus);
+
+    if (currentLv >= targetLv) {
+        document.getElementById("resultExp").textContent = "エラー：現在のレベルが目標レベル以上です。";
+        document.getElementById("resultCandy").textContent = "";
+        document.getElementById("resultShard").textContent = "";
+        document.getElementById("resultDays").textContent = "";
+        return;
+    }
+
+    let totalExp = remainingExp;
+    for (let lv = currentLv + 1; lv < targetLv; lv++) {
+        totalExp += Math.round(expTable[lv] * pokemonMultiplier);
+    }
+
+    const { candyCount, shardTotal } = simulateCandyAndShard(
+        currentLv,
+        remainingExp,
+        targetLv,
+        natureBonus,
+        candyBoost
+    );
+
+    const candyNeeded = candyCount;
+
+    let sleepExpPerDay = sleepExp * (1 + sleepBonus * 0.14);
+    sleepExpPerDay *= natureBonus;
+    sleepExpPerDay = Math.round(sleepExpPerDay);
+
+    const days = Math.ceil(totalExp / sleepExpPerDay);
+
+    document.getElementById("resultExp").textContent = `必要EXP：${totalExp}`;
+    document.getElementById("resultCandy").textContent = `必要アメ数：${candyNeeded}`;
+    document.getElementById("resultShard").textContent = `必要ゆめのかけら：${shardTotal}`;
+    document.getElementById("resultDays").textContent = `必要日数：${days}日`;
+    document.getElementById("resultNote").style.display = "block";
+}
+
+/* ---------------------------------------------------------
+   初期化
+--------------------------------------------------------- */
+
+function clearInputs() {
+    document.getElementById("currentLevel").value = 15;
+    document.getElementById("targetLevel").value = 60;
+    document.getElementById("sleepExp").value = 100;
+    document.getElementById("sleepBonus").value = 0;
+    document.getElementById("candyBoost").value = "none";
+    updateRemainingExp();
+    document.getElementById("resultNote").style.display = "none";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    populateNatureSelect();
+    populatePokemonSelect();
+    updateRemainingExp();
+
+    document.getElementById("currentLevel").addEventListener("input", updateRemainingExp);
+    document.getElementById("pokemonSelect").addEventListener("change", updateRemainingExp);
+
+    document.getElementById("calcButton").addEventListener("click", calculateExp);
+    document.getElementById("clearButton").addEventListener("click", clearInputs);
+});
+</script>
+
+</body>
+</html>
